@@ -5,23 +5,51 @@ import {ApolloServer} from "apollo-server-express";
 import { buildSchema } from "type-graphql";
 import { UserResolver } from "./UserResolver";
 import { createConnection } from "typeorm";
+import cookieParser from "cookie-parser";
+import { verify } from "jsonwebtoken";
+import { User } from "./entity/User";
+import { createAccessToken } from "./auth";
 
 (async () => {
-    // create an express app
+    // creates an express app
     const app = express();
+    // middleware to parse cookies and store in req.cookies, will run before every express route evaluates
+    app.use(cookieParser());
+    // generates access token if expired
+    app.post("/refresh_token", async (req, res) => {
+        // gets refresh token from cookies parsed by cookie-parser
+        const refreshToken = req.cookies.refreshToken;
+        if (!refreshToken) {
+            return res.send({ ok: false, accessToken: "" });
+        }
+        let payload: any = null;
+        try {
+            // verifies the refresh token sent by client
+            payload = verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!)
+        } catch (error) {
+            return res.send({ ok: false, accessToken: "" });
+        }
+        // finds the user who passed the token
+        const user = await User.findOne({ id: payload.userId});
+        if (!user) {
+            return res.send({ ok: false, accessToken: "" });
+        }
+        // creates new access token if user found
+        return res.send({ ok: true, accessToken: createAccessToken(user) });
+    });
     // creates tables for the defined entities by reading the ormconfig
     await createConnection();
-    // create graphql server
+    // creates graphql server
     const apolloServer = new ApolloServer({
        schema: await buildSchema({
            resolvers: [UserResolver]
        }),
-       // pass in express req, res to graphql
+       // passes in express req, res to graphql
        context: ({req, res}) => ({req, res})
     })
-    // link graphql and express servers
+    // links graphql and express servers
     apolloServer.applyMiddleware({app});
-    // listen to express server on port 4000
+    // listens to express server on port 4000
     app.listen(4000, () => {
         console.log("express server started");
     })
