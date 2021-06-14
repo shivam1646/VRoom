@@ -1,9 +1,11 @@
 import { compare, hash } from "bcryptjs"
-import {Resolver, Query, Mutation, Arg, ObjectType, Field, Ctx, UseMiddleware} from "type-graphql"
+import {Resolver, Query, Mutation, Arg, ObjectType, Field, Ctx, UseMiddleware, Int} from "type-graphql"
+import { getConnection } from "typeorm";
 import { createAccessToken, createRefreshToken } from "./auth";
 import { User } from "./entity/User"
 import { isAuth } from "./isAuth";
 import { MyContext } from "./MyContext";
+import { sendRefreshToken } from "./sendRefreshToken";
 
 
 // graphql schema :- defines list of queries a user can perform
@@ -44,35 +46,35 @@ export class UserResolver {
         return User.find();
     }
 
+    // revokes refresh token in case of forgot password, account hacked
+    @Mutation(() => Boolean)
+    async revokeRefreshTokensForUser(
+        @Arg("userId", () => Int) userId: number
+    ) {
+        await getConnection().getRepository(User).increment({id: userId}, "tokenVersion", 1);
+        return true;
+    }
+
     // create a mutation to login user
     // returns a LoginResponse graphql type
     @Mutation(() => LoginResponse)
     async login(
-        @Arg('email') email: string,
-        @Arg('password') password: string,
+        @Arg("email") email: string,
+        @Arg("password") password: string,
         @Ctx() {res}: MyContext
     ) : Promise<LoginResponse> {
         // check if user exists
         const user = await User.findOne({where: {email}});
-
         if (!user) {
             throw new Error("could not find user");
         }
-
         // check if password is valid
         const isPasswordValid = await compare(password, user.password);
-
         if (!isPasswordValid) {
             throw new Error("incorrect password");
         }
-
         // store refresh token
-        res.cookie(
-            "refreshToken",
-            createRefreshToken(user),
-            {httpOnly: true}
-        );
-       
+        sendRefreshToken(res, createRefreshToken(user));
         return {
             // generate access token using JWT
             accessToken: createAccessToken(user),
@@ -81,8 +83,8 @@ export class UserResolver {
 
     @Mutation(() => Boolean)
     async register(
-        @Arg('email') email: string,
-        @Arg('password') password: string,
+        @Arg("email") email: string,
+        @Arg("password") password: string,
     ) {
         // encrypt password
         const hashedPassword = await hash(password, 12);
