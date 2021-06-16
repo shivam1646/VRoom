@@ -10,10 +10,10 @@ export class User extends BaseEntity {
     id: number;
 
     @Field()
-    @Column("text")        // text is by default
+    @Column()        // text is by default
     email: string;
 
-    @Column("text")
+    @Column()
     password: string;
 
     // keeps track of how many times the access has been revoked for a user

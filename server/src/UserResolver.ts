@@ -34,13 +34,33 @@ class LoginResponse {
 @Resolver()
 export class UserResolver {
     @Query(() => String)
+    hello() {
+        return "Hi";
+    }
+
+    @Query(() => String)
     @UseMiddleware(isAuth)
     home(
         @Ctx() {payload}: MyContext
     ) {
         return `Welcome user ${payload?.userId}`;
     }
-    
+
+    @Query(() => User, {nullable: true})
+    @UseMiddleware(isAuth)
+    loggedInUser(
+        @Ctx() {payload}: MyContext
+    ) {
+        if (!payload) {
+            return null;
+        }
+        try {
+            return User.findOne(payload.userId);
+        } catch (error) {
+            return null;
+        }
+    }
+ 
     @Query(() => [User])
     users() {
         return User.find();
@@ -52,6 +72,15 @@ export class UserResolver {
         @Arg("userId", () => Int) userId: number
     ) {
         await getConnection().getRepository(User).increment({id: userId}, "tokenVersion", 1);
+        return true;
+    }
+
+    // revokes refresh token in case of forgot password, account hacked
+    @Mutation(() => Boolean)
+    async logout(
+        @Ctx() {res}: MyContext
+    ) {
+        sendRefreshToken(res, "");
         return true;
     }
 

@@ -1,0 +1,6 @@
+query LoggedInUser {
+    loggedInUser {
+        id,
+        email
+    }
+}

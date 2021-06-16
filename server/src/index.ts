@@ -6,6 +6,7 @@ import { buildSchema } from "type-graphql";
 import { UserResolver } from "./UserResolver";
 import { createConnection } from "typeorm";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import { verify } from "jsonwebtoken";
 import { User } from "./entity/User";
 import { createAccessToken, createRefreshToken } from "./auth";
@@ -14,6 +15,10 @@ import { sendRefreshToken } from "./sendRefreshToken";
 (async () => {
     // creates an express app
     const app = express();
+    app.use(cors({
+        origin: "http://localhost:3000",
+        credentials: true,
+    }));
     // middleware to parse cookies and store in req.cookies, will run before every express route evaluates
     app.use(cookieParser());
     // generates access token if expired
@@ -53,8 +58,8 @@ import { sendRefreshToken } from "./sendRefreshToken";
        // passes in express req, res to graphql
        context: ({req, res}) => ({req, res})
     })
-    // links graphql and express servers
-    apolloServer.applyMiddleware({app});
+    // links graphql and express servers and disable apollo cors
+    apolloServer.applyMiddleware({app, cors: false});
     // listens to express server on port 4000
     app.listen(4000, () => {
         console.log("express server started");
