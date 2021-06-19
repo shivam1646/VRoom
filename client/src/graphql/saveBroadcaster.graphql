@@ -1,0 +1,7 @@
+mutation SaveBroadcaster($userid: Float!, $email: String!) {
+    saveBroadcaster(userid: $userid, email: $email) {
+        id,
+        userid,
+        email
+    }
+}

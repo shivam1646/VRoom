@@ -19,7 +19,7 @@ function PrivateRoute({component, ...rest}: Props) {
         body = <Route
         render={({ location, history }) =>
           data && data.loggedInUser ? (
-            React.createElement(component, {history})
+            React.createElement(component, data.loggedInUser)
           ) : (
             <Redirect
               to={{
